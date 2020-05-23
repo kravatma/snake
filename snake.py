@@ -1,5 +1,7 @@
 import numpy as np
-import itertools
+import time
+import matplotlib.pyplot as plt
+import random
 
 class Snake:
     def __init__(self, coords, length=2, strategy=None):
@@ -11,18 +13,24 @@ class Snake:
 
     def die(self):
         self.alive = False
+        #print('snake die')
 
     def move(self, direction):
-        head_x, head_y = self.coords[0]
+        head_y, head_x = self.coords[0]
         if direction == 'top':
-            head_y += 1
-        if direction == 'bottom':
             head_y -= 1
+        if direction == 'bottom':
+            head_y += 1
         if direction == 'left':
             head_x -= 1
         if direction == 'right':
             head_x += 1
-        self.coords = [(head_x, head_y)] + self.coords[:-1]
+
+        if (head_y, head_x) in self.coords[1:]:
+            #print('self eat:', (head_y, head_x), self.coords[1:])
+            self.die()
+
+        self.coords = [(head_y, head_x)] + self.coords[:-1]
 
     def rise(self):
         self.length += 1
@@ -31,19 +39,35 @@ class Snake:
 
         pass
 
-    def make_step(self):
-        step_x, step_y = self.route[0]
-        head_x, head_y = self.coords[0]
+    def define_direction(self, head, step):
+        step_y, step_x = step
+        head_y, head_x = head
         if step_x == head_x + 1 and step_y == head_y:
-            self.move('right')
+            return 'right'
         elif step_x == head_x - 1 and step_y == head_y:
-            self.move('left')
-        elif step_x == head_x and step_y == head_y + 1:
-            self.move('top')
+            return 'left'
         elif step_x == head_x and step_y == head_y - 1:
-            self.move('bottom')
+            return 'top'
+        elif step_x == head_x and step_y == head_y + 1:
+            return 'bottom'
+
+    def make_step(self, field, route=False):
+        head_y, head_x = self.coords[0]
+        if route == True:
+            self.set_route(field)
+            step_y, step_x = self.route[0]
+            self.move(self.define_direction(head=(head_y, head_x), step=(step_y, step_x)))
         else:
-            self.die()
+            #print(head_y, head_x)
+            nearest_points = {(head_y+1, head_x), (head_y-1, head_x), (head_y, head_x+1), (head_y, head_x-1)}
+            #print(nearest_points, end='  ---  ')
+            nearest_points = nearest_points - field.walls - set(self.coords)
+            #print(nearest_points)
+            if len(nearest_points) == 0:
+                self.die()
+            else:
+                random_step = random.choice(list(nearest_points))
+                self.move(self.define_direction(head=(head_y, head_x), step=random_step))
 
 
 class Field:
@@ -81,21 +105,73 @@ class Playground:
             self.field = Field(fp=fp)
         if not snakes:
             walls = self.field.walls
-            coords = [(7, 7), (8, 7)]
+            coords = [(4, 7), (5, 7), (6, 7), (6, 8), (6, 9)]
             self.snakes = [Snake(coords=coords)]
+
+        self.pg_fig = plt.figure()
+        self.pg_ax = self.pg_fig.add_subplot()
+        plt.ion()
+        plt.show()
 
     def init_snakes(self, fp):
         pass
 
     def make_step(self):
         for snake in self.snakes:
-            snake.set_route(self.field)
-            snake.make_step()
+            if snake.alive == True:
+                snake.make_step(self.field)
+
+    def count_alive_snakes(self):
+        c = 0
+        for snake in self.snakes:
+            if snake.alive == True:
+                c += 1
+        return c
+
+    def check_collisions(self):
+        walls = self.field.walls
+        for i, snake in enumerate(self.snakes):
+            head = snake.coords[0]
+            others_snakes = set()
+            for enemy in self.snakes[:i]+self.snakes[i+1:]:
+                others_snakes = others_snakes.union(set(enemy.coords))
+            if head in walls.union(others_snakes):
+                #print('collision', 'walls:', head in walls, 'snakes:', head in others_snakes)
+                snake.die()
+            if self.field.raw_matrix[head] == 4:
+                self.field.raw_matrix[head] = 0
+                snake.rise()
+
+    def draw_pg(self, cool=False):
+        pg_matrix = self.field.raw_matrix.copy()
+        for snake in self.snakes:
+            if snake.alive == True:
+                for snake_piece in snake.coords:
+                    pg_matrix[snake_piece] = 2
+
+        #print(pg_matrix)
+        self.pg_ax.matshow(pg_matrix)
+        plt.draw()
+        plt.pause(0.001)
+
+
+    def run(self, delay=1, animation=True):
+        self.draw_pg()
+        i = 0
+        while self.count_alive_snakes() > 0:
+            print(i)
+            self.make_step()
+            self.check_collisions()
+            time.sleep(delay)
+            self.draw_pg()
+
+        time.sleep(1)
 
 
 if __name__ == '__main__':
     PG = Playground(fp='D:/Gitfiles/snake/testmap.txt')
-    print(PG.field.raw_matrix)
+    PG.run(delay=0.02)
+
 
 
 
