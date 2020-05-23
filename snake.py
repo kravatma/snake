@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import random
 
 class Snake:
-    def __init__(self, coords, length=2, strategy=None):
-        self.length = length
+    def __init__(self, coords, strategy=None):
+        self.length = len(coords)
         self.coords = coords
         self.strategy = strategy
         self.route = None
@@ -13,9 +13,10 @@ class Snake:
 
     def die(self):
         self.alive = False
-        #print('snake die')
+        print('snake die, length =', self.length)
+        return self.length
 
-    def move(self, direction):
+    def move(self, direction, rise=False):
         head_y, head_x = self.coords[0]
         if direction == 'top':
             head_y -= 1
@@ -27,13 +28,13 @@ class Snake:
             head_x += 1
 
         if (head_y, head_x) in self.coords[1:]:
-            #print('self eat:', (head_y, head_x), self.coords[1:])
+            print('self eat:', (head_y, head_x), self.coords[1:])
             self.die()
 
-        self.coords = [(head_y, head_x)] + self.coords[:-1]
-
-    def rise(self):
-        self.length += 1
+        if rise == True:
+            self.coords = [(head_y, head_x)] + self.coords
+        else:
+            self.coords = [(head_y, head_x)] + self.coords[:-1]
 
     def set_route(self, field):
 
@@ -56,7 +57,6 @@ class Snake:
         if route == True:
             self.set_route(field)
             step_y, step_x = self.route[0]
-            self.move(self.define_direction(head=(head_y, head_x), step=(step_y, step_x)))
         else:
             #print(head_y, head_x)
             nearest_points = {(head_y+1, head_x), (head_y-1, head_x), (head_y, head_x+1), (head_y, head_x-1)}
@@ -67,7 +67,13 @@ class Snake:
                 self.die()
             else:
                 random_step = random.choice(list(nearest_points))
-                self.move(self.define_direction(head=(head_y, head_x), step=random_step))
+                step_y, step_x = random_step
+
+            if field.raw_matrix[step_y, step_x] == 4:
+                rise = True
+            else:
+                rise = False
+            self.move(self.define_direction(head=(head_y, head_x), step=(step_y, step_x)), rise=rise)
 
 
 class Field:
@@ -105,8 +111,9 @@ class Playground:
             self.field = Field(fp=fp)
         if not snakes:
             walls = self.field.walls
-            coords = [(4, 7), (5, 7), (6, 7), (6, 8), (6, 9)]
-            self.snakes = [Snake(coords=coords)]
+            coords1 = [(4, 7), (5, 7), (6, 7), (6, 8), (6, 9)]
+            coords2 = [(2, 5), (2, 4), (2, 3), (2, 1)]
+            self.snakes = [Snake(coords=coords1)]
 
         self.pg_fig = plt.figure()
         self.pg_ax = self.pg_fig.add_subplot()
@@ -140,7 +147,6 @@ class Playground:
                 snake.die()
             if self.field.raw_matrix[head] == 4:
                 self.field.raw_matrix[head] = 0
-                snake.rise()
 
     def draw_pg(self, cool=False):
         pg_matrix = self.field.raw_matrix.copy()
@@ -169,7 +175,7 @@ class Playground:
 
 
 if __name__ == '__main__':
-    PG = Playground(fp='D:/Gitfiles/snake/testmap.txt')
+    PG = Playground(fp='testmap.txt')
     PG.run(delay=0.02)
 
 
