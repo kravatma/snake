@@ -5,16 +5,18 @@ import random
 
 class Snake:
     def __init__(self, coords, strategy=None):
-        self.length = len(coords)
         self.coords = coords
         self.strategy = strategy
         self.route = None
         self.alive = True
 
+    def length(self):
+        return len(self.coords)
+
     def die(self):
         self.alive = False
-        print('snake die, length =', self.length)
-        return self.length
+        print('snake die, length =', self.length())
+        return self.length()
 
     def move(self, direction, rise=False):
         head_y, head_x = self.coords[0]
@@ -65,15 +67,16 @@ class Snake:
             #print(nearest_points)
             if len(nearest_points) == 0:
                 self.die()
+                return None
             else:
                 random_step = random.choice(list(nearest_points))
                 step_y, step_x = random_step
 
-            if field.raw_matrix[step_y, step_x] == 4:
-                rise = True
-            else:
-                rise = False
-            self.move(self.define_direction(head=(head_y, head_x), step=(step_y, step_x)), rise=rise)
+        if field.raw_matrix[step_y, step_x] == 4:
+            rise = True
+        else:
+            rise = False
+        self.move(self.define_direction(head=(head_y, head_x), step=(step_y, step_x)), rise=rise)
 
 
 class Field:
@@ -113,7 +116,8 @@ class Playground:
             walls = self.field.walls
             coords1 = [(4, 7), (5, 7), (6, 7), (6, 8), (6, 9)]
             coords2 = [(2, 5), (2, 4), (2, 3), (2, 1)]
-            self.snakes = [Snake(coords=coords1)]
+            coords3 = [(2, 5)]
+            self.snakes = [Snake(coords=coords3)]
 
         self.pg_fig = plt.figure()
         self.pg_ax = self.pg_fig.add_subplot()
@@ -158,10 +162,10 @@ class Playground:
         #print(pg_matrix)
         self.pg_ax.matshow(pg_matrix)
         plt.draw()
-        plt.pause(0.001)
+        plt.pause(0.0000001)
 
 
-    def run(self, delay=1, animation=True):
+    def run(self, delay=1, draw=False):
         self.draw_pg()
         i = 0
         while self.count_alive_snakes() > 0:
@@ -169,14 +173,15 @@ class Playground:
             self.make_step()
             self.check_collisions()
             time.sleep(delay)
-            self.draw_pg()
+            if draw == True:
+                self.draw_pg()
 
         time.sleep(1)
 
 
 if __name__ == '__main__':
     PG = Playground(fp='testmap.txt')
-    PG.run(delay=0.02)
+    PG.run(delay=0.000001, draw=True)
 
 
 
