@@ -3,6 +3,7 @@ import time
 import matplotlib.pyplot as plt
 import random
 
+
 class Snake:
     def __init__(self, coords, strategy=None):
         self.coords = coords
@@ -39,8 +40,36 @@ class Snake:
             self.coords = [(head_y, head_x)] + self.coords[:-1]
 
     def set_route(self, field):
+        head_y, head_x = self.coords[0]
+        wave_points = {(head_y, head_x): (0, None)}
+        front = {(head_y, head_x)}
+        l = 0
+        gotcha = False
+        while gotcha == False:
+            new_front = set()
+            l += 1
+            for p_point in front:
+                y, x = p_point
+                new_sub_front = {(y, x-1), (y, x+1), (y-1, x), (y+1, x)} - field.walls - set(self.coords) - set(wave_points.keys())
+                new_front = new_front.union(new_sub_front)
+                for c_point in new_sub_front:
+                    if not wave_points.get(c_point):
+                        wave_points[c_point] = (l, p_point)
+                        if field.raw_matrix[c_point] == 4:
+                            gotcha = True
+                            apy, apx = c_point
+            front = new_front.copy()
+        route = []
+        c_point = apy, apx
+        while True:
+            l, p_point = wave_points[c_point]
+            if p_point is None:
+                break
+            route.append(c_point)
+            c_point = p_point
 
-        pass
+        route.reverse()
+        self.route = route
 
     def define_direction(self, head, step):
         step_y, step_x = step
@@ -60,11 +89,8 @@ class Snake:
             self.set_route(field)
             step_y, step_x = self.route[0]
         else:
-            #print(head_y, head_x)
             nearest_points = {(head_y+1, head_x), (head_y-1, head_x), (head_y, head_x+1), (head_y, head_x-1)}
-            #print(nearest_points, end='  ---  ')
             nearest_points = nearest_points - field.walls - set(self.coords)
-            #print(nearest_points)
             if len(nearest_points) == 0:
                 self.die()
                 return None
@@ -85,9 +111,7 @@ class Field:
         self.cells = None
         self.walls = walls
         self.raw_matrix = None
-        if apples:
-            self.apples = apples
-        elif fp:
+        if fp:
             self.read_from_file(fp)
 
     def read_from_file(self, fp):
@@ -100,12 +124,17 @@ class Field:
             self.walls = set(tuple(wa) for wa in walls_array)
             apples_array = np.argwhere(matr == 4)
             self.apples = set(tuple(wa) for wa in apples_array)
-            cells_array = np.argwhere(matr == 4)
+            cells_array = np.argwhere(matr == 0)
             self.cells = set(tuple(wa) for wa in cells_array)
 
-
     def generate_apple(self, snakes):
-        pass
+        snakes_coords = set()
+        for snake in snakes:
+            snakes_coords = snakes_coords.union(set(snake.coords))
+        available_points = self.cells - snakes_coords
+        new_apple = random.choice(list(available_points))
+        self.raw_matrix[new_apple] = 4
+
 
 
 class Playground:
@@ -116,7 +145,7 @@ class Playground:
             walls = self.field.walls
             coords1 = [(4, 7), (5, 7), (6, 7), (6, 8), (6, 9)]
             coords2 = [(2, 5), (2, 4), (2, 3), (2, 1)]
-            coords3 = [(2, 5)]
+            coords3 = [(2, 6)]
             self.snakes = [Snake(coords=coords3)]
 
         self.pg_fig = plt.figure()
@@ -130,7 +159,7 @@ class Playground:
     def make_step(self):
         for snake in self.snakes:
             if snake.alive == True:
-                snake.make_step(self.field)
+                snake.make_step(self.field, route=True)
 
     def count_alive_snakes(self):
         c = 0
@@ -151,6 +180,7 @@ class Playground:
                 snake.die()
             if self.field.raw_matrix[head] == 4:
                 self.field.raw_matrix[head] = 0
+                self.field.generate_apple(self.snakes)
 
     def draw_pg(self, cool=False):
         pg_matrix = self.field.raw_matrix.copy()
@@ -167,9 +197,7 @@ class Playground:
 
     def run(self, delay=1, draw=False):
         self.draw_pg()
-        i = 0
         while self.count_alive_snakes() > 0:
-            print(i)
             self.make_step()
             self.check_collisions()
             time.sleep(delay)
